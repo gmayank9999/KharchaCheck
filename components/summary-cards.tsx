@@ -1,4 +1,4 @@
-import { DollarSign, CreditCard, TrendingUp, Calendar } from "lucide-react"
+import { IndianRupee, CreditCard, TrendingUp, Calendar } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface SummaryCardsProps {
@@ -14,10 +14,10 @@ export function SummaryCards({ totalAmount, averageAmount, recentTotal, expenseC
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <IndianRupee className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${totalAmount.toFixed(2)}</div>
+          <div className="text-2xl font-bold">₹{totalAmount.toFixed(2)}</div>
           <p className="text-xs text-muted-foreground">Lifetime total across {expenseCount} expenses</p>
         </CardContent>
       </Card>
@@ -28,7 +28,7 @@ export function SummaryCards({ totalAmount, averageAmount, recentTotal, expenseC
           <Calendar className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${recentTotal.toFixed(2)}</div>
+          <div className="text-2xl font-bold">₹{recentTotal.toFixed(2)}</div>
           <p className="text-xs text-muted-foreground">Total spending in the last month</p>
         </CardContent>
       </Card>
@@ -39,7 +39,7 @@ export function SummaryCards({ totalAmount, averageAmount, recentTotal, expenseC
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${averageAmount.toFixed(2)}</div>
+          <div className="text-2xl font-bold">₹{averageAmount.toFixed(2)}</div>
           <p className="text-xs text-muted-foreground">Average amount per expense</p>
         </CardContent>
       </Card>

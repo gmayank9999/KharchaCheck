@@ -210,171 +210,179 @@ export function ReceiptScanner({ onClose, onScanComplete }: ReceiptScannerProps)
     const lines = text.split('\n')
       .map(line => line.trim())
       .filter(Boolean)
-      .map(line => line.replace(/\s+/g, ' ')); // normalize spaces
+      .map(line => line.replace(/\s+/g, ' '));
 
     console.log('Processing lines:', lines);
 
     let amount = '';
     let date = '';
-    let merchant = '';
     let description = '';
-    let category = 'Other';
+    let category = '';
 
-    // Try to find merchant name (usually at the top)
-    for (const line of lines) {
-      if (line.includes('RESTAURANT') || line.includes('PRIVATE LIMITED') || 
-          line.includes('PVT') || line.includes('LTD')) {
-        merchant = line.trim();
-        break;
-      }
-    }
-
-    // Look for date with improved Indian date format detection
+    // Find date - Look for common date formats
     const datePatterns = [
-      /Date:?\s*(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/i,
-      /Bill Date:?\s*(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/i,
-      /(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/,
+      /Date\s*[:.]?\s*(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})/i,  // Date: DD/MM/YY
+      /(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})/,  // DD/MM/YY or DD-MM-YYYY
+      /(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})/,     // YYYY/MM/DD
     ];
 
     for (const line of lines) {
       for (const pattern of datePatterns) {
         const match = line.match(pattern);
         if (match) {
-          let [_, day, month, year] = match;
-          if (year.length === 2) year = '20' + year;
-          day = day.padStart(2, '0');
-          month = month.padStart(2, '0');
-          date = `${year}-${month}-${day}`;
-          break;
+          const rawDate = match[1];
+          // Convert the date to YYYY-MM-DD format
+          try {
+            let [d, m, y] = rawDate.split(/[-/.]/);
+            
+            // Handle 2-digit year
+            if (y.length === 2) {
+              y = '20' + y; // Assume 20xx for two-digit years
+            }
+            
+            // Ensure month and day are two digits
+            d = d.padStart(2, '0');
+            m = m.padStart(2, '0');
+            
+            // Validate components
+            const yearNum = parseInt(y);
+            const monthNum = parseInt(m);
+            const dayNum = parseInt(d);
+            
+            if (yearNum >= 2000 && yearNum <= 2100 &&
+                monthNum >= 1 && monthNum <= 12 &&
+                dayNum >= 1 && dayNum <= 31) {
+              date = `${y}-${m}-${d}`;
+              break;
+            }
+          } catch (e) {
+            console.error('Error parsing date:', e);
+          }
         }
       }
       if (date) break;
     }
 
-    // Enhanced amount detection for restaurant/itemized receipts
-    const amountPatterns = [
-      // Look for explicit total markers
-      /(?:grand\s+)?total\s*(?:amount)?[:.]?\s*(?:Rs\.?|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
-      /(?:sub\s*[-]?\s*)?total\s*[:.]?\s*(?:Rs\.?|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
-      /amount\s+payable[:.]?\s*(?:Rs\.?|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
-      /net\s+amount[:.]?\s*(?:Rs\.?|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
-      /to\s+pay[:.]?\s*(?:Rs\.?|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/i,
-      /(?:Rs\.?|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)\s*only/i,
-    ];
+    // Determine category based on items and keywords
+    const categoryKeywords: Record<string, string[]> = {
+      "Food & Dining": [
+        "restaurant", "cafe", "food", "meal", "dinner", "lunch", "breakfast",
+        "biryani", "chicken", "mutton", "drinks", "soft drinks", "bottle",
+        "crispy", "dish", "dining", "dine", "maarhaba", "kashmiri", "menu",
+        "corn", "rice", "naan", "roti", "curry"
+      ],
+      "Groceries": ["grocery", "supermarket", "market", "fruits", "vegetables", "mart"],
+      "Shopping": ["mall", "store", "retail", "clothes", "clothing", "fashion"],
+      "Transportation": ["taxi", "uber", "cab", "fare", "metro", "bus", "train"],
+      "Entertainment": ["movie", "theatre", "cinema", "show", "event"],
+      "Utilities": ["bill", "utility", "electricity", "water", "gas"],
+      "Healthcare": ["medical", "hospital", "doctor", "pharmacy", "medicine"],
+    };
 
-    // Patterns to skip (non-total amounts)
-    const skipPatterns = [
-      /qty|quantity/i,
-      /bill\s*no/i,
-      /invoice\s*no/i,
-      /item\s*no/i,
-      /table\s*no/i,
-      /gstin/i,
-      /mobile|phone/i,
-      /pin\s*code/i,
-    ];
+    // Collect all relevant words from the receipt
+    const words = lines.join(' ').toLowerCase().split(/\s+/);
+    const categoryScores: Record<string, number> = {};
 
-    // First find the highest amount in the receipt
-    let highestAmount = 0;
-    let foundExplicitTotal = false;
+    // Score each category based on keyword matches
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+      categoryScores[category] = 0;
+      for (const keyword of keywords) {
+        if (words.some(word => word.includes(keyword))) {
+          categoryScores[category]++;
+        }
+      }
+    }
 
-    // Process lines from bottom to top for totals
-    const reversedLines = [...lines].reverse();
-    for (const line of reversedLines) {
-      const cleanLine = line.toLowerCase().trim();
-      
-      // Skip if line contains any of the skip patterns
-      if (skipPatterns.some(pattern => pattern.test(cleanLine))) {
-        continue;
+    // Find the category with the highest score
+    let maxScore = 0;
+    for (const [cat, score] of Object.entries(categoryScores)) {
+      if (score > maxScore) {
+        maxScore = score;
+        category = cat;
+      }
+    }
+
+    // Set default category if none found
+    if (!category) {
+      category = "Other";
+    }
+
+    // Find all numbers in the text that could be amounts
+    const allAmounts: number[] = [];
+    const amountLines: { amount: number, lineIndex: number }[] = [];
+    
+    lines.forEach((line, index) => {
+      // Skip obvious non-amount lines
+      if (line.toLowerCase().match(/phone|contact|gstin|bill\s*no|invoice/i)) {
+        return;
       }
 
-      // First try explicit total patterns
-      for (const pattern of amountPatterns) {
-        const match = line.match(pattern);
-        if (match) {
-          const value = parseFloat(match[1].replace(/,/g, ''));
+      // Look for numbers that might be amounts
+      const matches = line.match(/(?:Rs\.?|₹)?\s*(\d+(?:[.,]\d{1,2})?)/g);
+      if (matches) {
+        matches.forEach(match => {
+          // Clean the match of currency symbols and spaces
+          const cleanMatch = match.replace(/[Rs\.₹\s]/g, '');
+          // Replace comma with decimal point if it appears to be a decimal separator
+          const normalizedMatch = cleanMatch.includes(',') ? 
+            cleanMatch.replace(/,(\d{2})$/, '.$1') : cleanMatch;
+          
+          const value = parseFloat(normalizedMatch);
+          if (!isNaN(value) && value > 0) {
+            allAmounts.push(value);
+            amountLines.push({ amount: value, lineIndex: index });
+          }
+        });
+      }
+    });
+
+    // Sort amounts in descending order
+    const sortedAmounts = [...allAmounts].sort((a, b) => b - a);
+
+    // First try to find explicit total amounts
+    const totalKeywords = ['total', 'sub total', 'grand total', 'amount'];
+    let foundTotal = false;
+
+    // Check the last few lines for total amount
+    const lastFewLines = lines.slice(-5);
+    for (let i = lastFewLines.length - 1; i >= 0; i--) {
+      const line = lastFewLines[i].toLowerCase();
+      if (totalKeywords.some(keyword => line.includes(keyword))) {
+        const matches = line.match(/(\d+(?:[.,]\d{1,2})?)/g);
+        if (matches) {
+          const value = parseFloat(matches[matches.length - 1].replace(/,/g, ''));
           if (!isNaN(value) && value > 0) {
             amount = value.toFixed(2);
-            foundExplicitTotal = true;
+            foundTotal = true;
             break;
           }
         }
       }
+    }
 
-      if (foundExplicitTotal) break;
+    // If no explicit total found, look for the largest amount at the bottom
+    // that could reasonably be a total
+    if (!foundTotal && sortedAmounts.length > 0) {
+      const bottomAmounts = amountLines
+        .filter(({ lineIndex }) => lineIndex >= lines.length - 5)
+        .map(({ amount }) => amount)
+        .sort((a, b) => b - a);
 
-      // If no explicit total, look for amounts at the bottom
-      const numberMatches = line.match(/(?:Rs\.?|₹)?\s*(\d+(?:,\d+)*(?:\.\d{2})?)/g);
-      if (numberMatches) {
-        for (const match of numberMatches) {
-          const value = parseFloat(match.replace(/[^0-9.]/g, ''));
-          if (!isNaN(value) && value > highestAmount) {
-            highestAmount = value;
-            // Only update amount if it's significantly larger (likely to be the total)
-            if (value > 100) {
-              amount = value.toFixed(2);
-            }
-          }
-        }
+      if (bottomAmounts.length > 0) {
+        amount = bottomAmounts[0].toFixed(2);
       }
     }
 
-    // If we found a total explicitly, use that, otherwise use the highest amount
-    if (!foundExplicitTotal && highestAmount > 0) {
-      amount = highestAmount.toFixed(2);
+    // If still no amount found, use the largest reasonable amount
+    if (!amount && sortedAmounts.length > 0) {
+      amount = sortedAmounts[0].toFixed(2);
     }
-
-    // Enhanced category detection
-    const lowerText = text.toLowerCase();
-    if (lowerText.includes('restaurant') || lowerText.includes('cafe') || 
-        lowerText.includes('food') || lowerText.includes('dining')) {
-      category = 'Food & Dining';
-    } else if (lowerText.includes('supermarket') || lowerText.includes('grocery') || 
-               lowerText.includes('mart')) {
-      category = 'Groceries';
-    }
-
-    // Build better description
-    description = merchant ? 
-      `Purchase from ${merchant.replace(/PRIVATE LIMITED|PVT\.?\s*LTD\.?/i, '').trim()}` : 
-      'Store purchase';
-
-    // Add items if found
-    const items: string[] = [];
-    let foundItems = false;
-    for (const line of lines) {
-      const cleanLine = line.toLowerCase();
-      if (cleanLine.includes('qty') || cleanLine.includes('price') || cleanLine.includes('amount')) {
-        foundItems = true;
-        continue;
-      }
-      if (foundItems && /\d+\.\d{2}/.test(line) && !skipPatterns.some(pattern => pattern.test(cleanLine))) {
-        const itemMatch = line.match(/([A-Za-z\s]+)/);
-        if (itemMatch) {
-          const item = itemMatch[1].trim();
-          if (item.length > 2) items.push(item);
-        }
-      }
-    }
-
-    if (items.length > 0) {
-      description += ` (Items: ${items.slice(0, 3).join(', ')}${items.length > 3 ? '...' : ''})`;
-    }
-
-    console.log('Extracted data:', {
-      amount,
-      date,
-      merchant,
-      description,
-      category,
-      items
-    });
 
     return {
       amount,
       date: date || new Date().toISOString().split('T')[0],
-      description,
-      category
+      description: "",  // Leave description empty for user to fill
+      category: category || "Other"
     };
   };
 
