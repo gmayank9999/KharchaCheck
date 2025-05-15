@@ -25,8 +25,17 @@ export function Insights({ expenses }: InsightsProps) {
 
   // Calculate category-wise spending
   const getCategorySpending = () => {
+    // Get current month's expenses only
+    const currentDate = new Date()
+    const currentMonthYear = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+    const currentMonthExpenses = expenses.filter(expense => {
+      const date = new Date(expense.date)
+      const expenseMonthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      return expenseMonthYear === currentMonthYear
+    })
+
     const categoryData: { [key: string]: number } = {}
-    expenses.forEach(expense => {
+    currentMonthExpenses.forEach(expense => {
       categoryData[expense.category] = (categoryData[expense.category] || 0) + expense.amount
     })
     return Object.entries(categoryData).map(([category, amount]) => ({
@@ -37,18 +46,30 @@ export function Insights({ expenses }: InsightsProps) {
 
   // Calculate month-over-month change
   const getMonthOverMonthChange = () => {
-    const monthlyData = getMonthlySpending()
-    if (monthlyData.length < 2) return 0
-    const currentMonth = monthlyData[monthlyData.length - 1].amount
-    const previousMonth = monthlyData[monthlyData.length - 2].amount
-    return ((currentMonth - previousMonth) / previousMonth) * 100
+    const currentDate = new Date()
+    const currentMonthYear = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+    
+    // Get previous month
+    const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
+    const prevMonthYear = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+    
+    const currentMonthData = monthlyData.find(data => data.month === currentMonthYear)
+    const prevMonthData = monthlyData.find(data => data.month === prevMonthYear)
+    
+    if (!currentMonthData || !prevMonthData) return 0
+    return ((currentMonthData.amount - prevMonthData.amount) / prevMonthData.amount) * 100
   }
 
   const monthlyData = getMonthlySpending()
   const categoryData = getCategorySpending()
   const monthOverMonthChange = getMonthOverMonthChange()
 
-  const totalAmount = monthlyData.reduce((sum, data) => sum + data.amount, 0)
+  // Get current month's total
+  const currentDate = new Date()
+  const currentMonthYear = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+  const currentMonthTotal = monthlyData.find(data => data.month === currentMonthYear)?.amount || 0
+
+  const totalAmount = currentMonthTotal
   const topCategories = categoryData
     .map(category => ({
       name: category.category,
@@ -98,13 +119,12 @@ export function Insights({ expenses }: InsightsProps) {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+        <Card>          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Expenses This Month</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ₹{expenses.reduce((sum, expense) => sum + expense.amount, 0).toLocaleString()}
+              ₹{currentMonthTotal.toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -118,13 +138,12 @@ export function Insights({ expenses }: InsightsProps) {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card>          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Monthly</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ₹{(monthlyData.reduce((sum, data) => sum + data.amount, 0) / monthlyData.length || 0).toLocaleString()}
+              ₹{monthlyData.length > 0 ? (monthlyData.reduce((sum, data) => sum + data.amount, 0) / monthlyData.length).toLocaleString() : "0"}
             </div>
           </CardContent>
         </Card>

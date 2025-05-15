@@ -34,6 +34,9 @@ export type Budget = {
   amount: number
   period: "monthly" | "yearly"
   accountId: string
+  email?: string
+  alertThreshold?: number
+  lastAlertSent?: string
 }
 
 export type Account = {

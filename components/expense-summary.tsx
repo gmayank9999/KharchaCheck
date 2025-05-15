@@ -26,8 +26,13 @@ export function ExpenseSummary({ expenses, budgets = [] }: ExpenseSummaryProps) 
   // Get expenses from the last 30 days
   const recentExpenses = useMemo(() => {
     const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setHours(0, 0, 0, 0)
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    return expenses.filter((expense) => new Date(expense.date) >= thirtyDaysAgo)
+    return expenses.filter((expense) => {
+      const expenseDate = new Date(expense.date)
+      expenseDate.setHours(0, 0, 0, 0)
+      return expenseDate >= thirtyDaysAgo
+    })
   }, [expenses])
 
   const recentTotal = useMemo(() => {
@@ -37,12 +42,12 @@ export function ExpenseSummary({ expenses, budgets = [] }: ExpenseSummaryProps) 
   // Get current month's expenses for budget comparison
   const currentMonthExpenses = useMemo(() => {
     const now = new Date()
-    const currentMonth = now.getMonth()
-    const currentYear = now.getFullYear()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
     return expenses.filter((expense) => {
       const expenseDate = new Date(expense.date)
-      return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear
+      return expenseDate >= startOfMonth && expenseDate <= endOfMonth
     })
   }, [expenses])
 

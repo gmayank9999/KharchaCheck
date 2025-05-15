@@ -17,7 +17,9 @@ export function SummaryCards({ totalAmount, averageAmount, recentTotal, expenseC
           <IndianRupee className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">₹{totalAmount.toFixed(2)}</div>
+          <div className="text-2xl font-bold">
+            <span className="font-normal">₹</span>{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
           <p className="text-xs text-muted-foreground">Lifetime total across {expenseCount} expenses</p>
         </CardContent>
       </Card>
@@ -28,7 +30,9 @@ export function SummaryCards({ totalAmount, averageAmount, recentTotal, expenseC
           <Calendar className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">₹{recentTotal.toFixed(2)}</div>
+          <div className="text-2xl font-bold">
+            <span className="font-normal">₹</span>{recentTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
           <p className="text-xs text-muted-foreground">Total spending in the last month</p>
         </CardContent>
       </Card>
@@ -39,7 +43,9 @@ export function SummaryCards({ totalAmount, averageAmount, recentTotal, expenseC
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">₹{averageAmount.toFixed(2)}</div>
+          <div className="text-2xl font-bold">
+            <span className="font-normal">₹</span>{averageAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
           <p className="text-xs text-muted-foreground">Average amount per expense</p>
         </CardContent>
       </Card>

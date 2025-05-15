@@ -49,7 +49,7 @@ export function BudgetSettings({ budget, onSave, onClose }: BudgetSettingsProps)
               />
             </div>
           </div>
-          {/* <div className="space-y-2">
+          <div className="space-y-2">
             <Label htmlFor="email">Email for Alerts</Label>
             <Input
               id="email"
@@ -58,7 +58,7 @@ export function BudgetSettings({ budget, onSave, onClose }: BudgetSettingsProps)
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
             />
-          </div> */}
+          </div>
           <div className="space-y-2">
             <Label>Alert Threshold ({alertThreshold}%)</Label>
             <Slider
